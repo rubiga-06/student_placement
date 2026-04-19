@@ -1,42 +1,80 @@
-import React, { useState } from 'react';
-
-// Dummy Data
-const initialStudents = [
-  { id: 1, roll_no: '101', name: 'John Doe', dept: 'CSE', year: 2024, cgpa: 8.5, arrear_status: 'None', email: 'john@example.com', phone: '1234567890' },
-  { id: 2, roll_no: '102', name: 'Jane Smith', dept: 'IT', year: 2024, cgpa: 9.1, arrear_status: 'Active', email: 'jane@example.com', phone: '0987654321' },
-];
-
-const initialCompanies = [
-  { id: 1, company_name: 'TechCorp', min_cgpa: 7.5, arrear_allowed: 'No', eligible_dept: 'CSE, IT', package: 8.5, year: 2024 },
-  { id: 2, company_name: 'DataSys', min_cgpa: 6.0, arrear_allowed: 'Yes', eligible_dept: 'All', package: 6.0, year: 2024 },
-];
-
-const initialTrainings = [
-  { id: 1, training_name: 'Aptitude Mastery', trainer_name: 'Mr. Smith', training_date: '2023-10-15', duration: '2 Hours', eligible_dept: 'All', description: 'Quantitative aptitude and reasoning' },
-  { id: 2, training_name: 'Advanced React', trainer_name: 'Ms. Alice', training_date: '2023-10-20', duration: '3 Days', eligible_dept: 'CSE, IT', description: 'React hooks, state management' },
-];
-
-const placementStatusData = [
-  { roll_no: '101', name: 'John Doe', status: 'Placed', company: 'TechCorp' },
-  { roll_no: '102', name: 'Jane Smith', status: 'Not Placed', company: '-' },
-  { roll_no: '103', name: 'Bob Wilson', status: 'Placed', company: 'DataSys' },
-];
+import React, { useState, useEffect } from 'react';
+import { 
+  fetchStudents, addStudent, deleteStudent, 
+  fetchCompanies, addCompany, deleteCompany, 
+  fetchTrainings, addTraining, deleteTraining,
+  fetchPlacementStatus 
+} from './api';
 
 const AdminDashboard = () => {
   const [activeTab, setActiveTab] = useState('students');
   
   // States for data
-  const [students, setStudents] = useState(initialStudents);
-  const [companies, setCompanies] = useState(initialCompanies);
-  const [trainings, setTrainings] = useState(initialTrainings);
+  const [students, setStudents] = useState([]);
+  const [companies, setCompanies] = useState([]);
+  const [trainings, setTrainings] = useState([]);
+
+  // Form States
+  const [studentForm, setStudentForm] = useState({ roll_no: '', name: '', dept: '', year: '', cgpa: '', arrear_status: '', email: '', phone: '', password: '' });
+  const [companyForm, setCompanyForm] = useState({ company_name: '', min_cgpa: '', arrear_allowed: '', eligible_dept: '', package: '', year: '' });
+  const [trainingForm, setTrainingForm] = useState({ training_name: '', trainer_name: '', training_date: '', duration: '', eligible_dept: '', description: '' });
 
   // States for search
   const [searchRoll, setSearchRoll] = useState('');
   const [searchResult, setSearchResult] = useState(null);
 
-  const handleSearchPlacement = () => {
-    const result = placementStatusData.find(s => s.roll_no === searchRoll);
-    setSearchResult(result || { notFound: true });
+  useEffect(() => {
+    loadAllData();
+  }, []);
+
+  const loadAllData = async () => {
+    try {
+      setStudents(await fetchStudents());
+      setCompanies(await fetchCompanies());
+      setTrainings(await fetchTrainings());
+    } catch (err) { console.error("Load failed", err); }
+  };
+
+  const handleAddStudent = async () => {
+    await addStudent(studentForm);
+    setStudentForm({ roll_no: '', name: '', dept: '', year: '', cgpa: '', arrear_status: '', email: '', phone: '', password: '' });
+    loadAllData();
+  };
+
+  const handleDeleteStudent = async (id) => {
+    await deleteStudent(id);
+    loadAllData();
+  };
+
+  const handleAddCompany = async () => {
+    await addCompany(companyForm);
+    setCompanyForm({ company_name: '', min_cgpa: '', arrear_allowed: '', eligible_dept: '', package: '', year: '' });
+    loadAllData();
+  };
+
+  const handleDeleteCompany = async (id) => {
+    await deleteCompany(id);
+    loadAllData();
+  };
+
+  const handleAddTraining = async () => {
+    await addTraining(trainingForm);
+    setTrainingForm({ training_name: '', trainer_name: '', training_date: '', duration: '', eligible_dept: '', description: '' });
+    loadAllData();
+  };
+
+  const handleDeleteTraining = async (id) => {
+    await deleteTraining(id);
+    loadAllData();
+  };
+
+  const handleSearchPlacement = async () => {
+    try {
+      const result = await fetchPlacementStatus(searchRoll);
+      setSearchResult(result);
+    } catch (err) {
+      setSearchResult({ notFound: true });
+    }
   };
 
   return (
@@ -70,17 +108,17 @@ const AdminDashboard = () => {
           {activeTab === 'students' && (
             <div>
               <h4 className="mb-3">Manage Students</h4>
-              <form className="row g-3 mb-4">
-                <div className="col-md-2"><input type="text" className="form-control" placeholder="Roll No" /></div>
-                <div className="col-md-3"><input type="text" className="form-control" placeholder="Name" /></div>
-                <div className="col-md-2"><input type="text" className="form-control" placeholder="Dept" /></div>
-                <div className="col-md-2"><input type="number" className="form-control" placeholder="Year" /></div>
-                <div className="col-md-2"><input type="number" step="0.01" className="form-control" placeholder="CGPA" /></div>
-                <div className="col-md-2"><input type="text" className="form-control" placeholder="Arrear Status" /></div>
-                <div className="col-md-3"><input type="email" className="form-control" placeholder="Email" /></div>
-                <div className="col-md-2"><input type="text" className="form-control" placeholder="Phone" /></div>
-                <div className="col-md-3"><input type="password" className="form-control" placeholder="Password" /></div>
-                <div className="col-md-2 d-flex align-items-end"><button type="button" className="btn btn-primary w-100">Add Student</button></div>
+              <form className="row g-3 mb-4" onSubmit={(e) => { e.preventDefault(); handleAddStudent(); }}>
+                <div className="col-md-2"><input type="text" className="form-control" placeholder="Roll No" value={studentForm.roll_no} onChange={(e) => setStudentForm({...studentForm, roll_no: e.target.value})} /></div>
+                <div className="col-md-3"><input type="text" className="form-control" placeholder="Name" value={studentForm.name} onChange={(e) => setStudentForm({...studentForm, name: e.target.value})} /></div>
+                <div className="col-md-2"><input type="text" className="form-control" placeholder="Dept" value={studentForm.dept} onChange={(e) => setStudentForm({...studentForm, dept: e.target.value})} /></div>
+                <div className="col-md-2"><input type="number" className="form-control" placeholder="Year" value={studentForm.year} onChange={(e) => setStudentForm({...studentForm, year: e.target.value})} /></div>
+                <div className="col-md-2"><input type="number" step="0.01" className="form-control" placeholder="CGPA" value={studentForm.cgpa} onChange={(e) => setStudentForm({...studentForm, cgpa: e.target.value})} /></div>
+                <div className="col-md-2"><input type="text" className="form-control" placeholder="Arrear Status" value={studentForm.arrear_status} onChange={(e) => setStudentForm({...studentForm, arrear_status: e.target.value})} /></div>
+                <div className="col-md-3"><input type="email" className="form-control" placeholder="Email" value={studentForm.email} onChange={(e) => setStudentForm({...studentForm, email: e.target.value})} /></div>
+                <div className="col-md-2"><input type="text" className="form-control" placeholder="Phone" value={studentForm.phone} onChange={(e) => setStudentForm({...studentForm, phone: e.target.value})} /></div>
+                <div className="col-md-3"><input type="password" className="form-control" placeholder="Password" value={studentForm.password} onChange={(e) => setStudentForm({...studentForm, password: e.target.value})} /></div>
+                <div className="col-md-2 d-flex align-items-end"><button type="submit" className="btn btn-primary w-100">Add Student</button></div>
               </form>
               <div className="table-responsive">
                 <table className="table table-striped table-hover table-sm align-middle">
@@ -92,12 +130,11 @@ const AdminDashboard = () => {
                   </thead>
                   <tbody>
                     {students.map(s => (
-                      <tr key={s.id}>
+                      <tr key={s.student_id}>
                         <td>{s.roll_no}</td><td>{s.name}</td><td>{s.dept}</td><td>{s.year}</td><td>{s.cgpa}</td>
                         <td>{s.arrear_status}</td><td>{s.email}</td><td>{s.phone}</td>
                         <td className="text-nowrap">
-                          <button className="btn btn-sm btn-warning me-1">Edit</button>
-                          <button className="btn btn-sm btn-danger">Del</button>
+                          <button className="btn btn-sm btn-danger" onClick={() => handleDeleteStudent(s.student_id)}>Del</button>
                         </td>
                       </tr>
                     ))}
@@ -111,20 +148,20 @@ const AdminDashboard = () => {
           {activeTab === 'companies' && (
             <div>
               <h4 className="mb-3">Manage Companies</h4>
-              <form className="row g-3 mb-4">
-                <div className="col-md-4"><input type="text" className="form-control" placeholder="Company Name" /></div>
-                <div className="col-md-2"><input type="number" step="0.01" className="form-control" placeholder="Min CGPA" /></div>
+              <form className="row g-3 mb-4" onSubmit={(e) => { e.preventDefault(); handleAddCompany(); }}>
+                <div className="col-md-4"><input type="text" className="form-control" placeholder="Company Name" value={companyForm.company_name} onChange={(e) => setCompanyForm({...companyForm, company_name: e.target.value})} /></div>
+                <div className="col-md-2"><input type="number" step="0.01" className="form-control" placeholder="Min CGPA" value={companyForm.min_cgpa} onChange={(e) => setCompanyForm({...companyForm, min_cgpa: e.target.value})} /></div>
                 <div className="col-md-2">
-                  <select className="form-select">
+                  <select className="form-select" value={companyForm.arrear_allowed} onChange={(e) => setCompanyForm({...companyForm, arrear_allowed: e.target.value})}>
                     <option value="">Arrears Allowed?</option>
                     <option value="Yes">Yes</option>
                     <option value="No">No</option>
                   </select>
                 </div>
-                <div className="col-md-4"><input type="text" className="form-control" placeholder="Eligible Dept (e.g. CSE, IT)" /></div>
-                <div className="col-md-3"><input type="number" step="0.01" className="form-control" placeholder="Package (LPA)" /></div>
-                <div className="col-md-2"><input type="number" className="form-control" placeholder="Year" /></div>
-                <div className="col-md-2 d-flex align-items-end"><button type="button" className="btn btn-primary w-100">Add Company</button></div>
+                <div className="col-md-4"><input type="text" className="form-control" placeholder="Eligible Dept" value={companyForm.eligible_dept} onChange={(e) => setCompanyForm({...companyForm, eligible_dept: e.target.value})} /></div>
+                <div className="col-md-3"><input type="number" step="0.01" className="form-control" placeholder="Package (LPA)" value={companyForm.package} onChange={(e) => setCompanyForm({...companyForm, package: e.target.value})} /></div>
+                <div className="col-md-2"><input type="number" className="form-control" placeholder="Year" value={companyForm.year} onChange={(e) => setCompanyForm({...companyForm, year: e.target.value})} /></div>
+                <div className="col-md-2 d-flex align-items-end"><button type="submit" className="btn btn-primary w-100">Add Company</button></div>
               </form>
               <div className="table-responsive">
                 <table className="table table-striped table-hover table-sm align-middle">
@@ -136,10 +173,10 @@ const AdminDashboard = () => {
                   </thead>
                   <tbody>
                     {companies.map(c => (
-                      <tr key={c.id}>
+                      <tr key={c.company_id}>
                         <td>{c.company_name}</td><td>{c.min_cgpa}</td><td>{c.arrear_allowed}</td>
                         <td>{c.eligible_dept}</td><td>{c.package}</td><td>{c.year}</td>
-                        <td><button className="btn btn-sm btn-danger">Del</button></td>
+                        <td><button className="btn btn-sm btn-danger" onClick={() => handleDeleteCompany(c.company_id)}>Del</button></td>
                       </tr>
                     ))}
                   </tbody>
@@ -152,14 +189,14 @@ const AdminDashboard = () => {
           {activeTab === 'trainings' && (
             <div>
               <h4 className="mb-3">Manage Trainings</h4>
-              <form className="row g-3 mb-4">
-                <div className="col-md-3"><input type="text" className="form-control" placeholder="Training Name" /></div>
-                <div className="col-md-3"><input type="text" className="form-control" placeholder="Trainer Name" /></div>
-                <div className="col-md-2"><input type="date" className="form-control" /></div>
-                <div className="col-md-2"><input type="text" className="form-control" placeholder="Duration (e.g. 2 Days)" /></div>
-                <div className="col-md-2"><input type="text" className="form-control" placeholder="Eligible Dept" /></div>
-                <div className="col-md-10"><input type="text" className="form-control" placeholder="Description" /></div>
-                <div className="col-md-2 d-flex align-items-end"><button type="button" className="btn btn-primary w-100">Add Training</button></div>
+              <form className="row g-3 mb-4" onSubmit={(e) => { e.preventDefault(); handleAddTraining(); }}>
+                <div className="col-md-3"><input type="text" className="form-control" placeholder="Training Name" value={trainingForm.training_name} onChange={(e) => setTrainingForm({...trainingForm, training_name: e.target.value})} /></div>
+                <div className="col-md-3"><input type="text" className="form-control" placeholder="Trainer Name" value={trainingForm.trainer_name} onChange={(e) => setTrainingForm({...trainingForm, trainer_name: e.target.value})} /></div>
+                <div className="col-md-2"><input type="date" className="form-control" value={trainingForm.training_date} onChange={(e) => setTrainingForm({...trainingForm, training_date: e.target.value})} /></div>
+                <div className="col-md-2"><input type="text" className="form-control" placeholder="Duration" value={trainingForm.duration} onChange={(e) => setTrainingForm({...trainingForm, duration: e.target.value})} /></div>
+                <div className="col-md-2"><input type="text" className="form-control" placeholder="Eligible Dept" value={trainingForm.eligible_dept} onChange={(e) => setTrainingForm({...trainingForm, eligible_dept: e.target.value})} /></div>
+                <div className="col-md-10"><input type="text" className="form-control" placeholder="Description" value={trainingForm.description} onChange={(e) => setTrainingForm({...trainingForm, description: e.target.value})} /></div>
+                <div className="col-md-2 d-flex align-items-end"><button type="submit" className="btn btn-primary w-100">Add Training</button></div>
               </form>
               <div className="table-responsive">
                 <table className="table table-striped table-hover table-sm align-middle">
@@ -171,10 +208,10 @@ const AdminDashboard = () => {
                   </thead>
                   <tbody>
                     {trainings.map(t => (
-                      <tr key={t.id}>
+                      <tr key={t.training_id}>
                         <td>{t.training_name}</td><td>{t.trainer_name}</td><td>{t.training_date}</td>
                         <td>{t.duration}</td><td>{t.eligible_dept}</td><td>{t.description}</td>
-                        <td><button className="btn btn-sm btn-danger">Del</button></td>
+                        <td><button className="btn btn-sm btn-danger" onClick={() => handleDeleteTraining(t.training_id)}>Del</button></td>
                       </tr>
                     ))}
                   </tbody>

@@ -1,35 +1,42 @@
-import React, { useState } from 'react';
-
-// Dummy Data
-const studentProfile = {
-  roll_no: '101',
-  name: 'John Doe',
-  dept: 'CSE',
-  year: 2024,
-  cgpa: 8.5,
-  arrear_status: 'None',
-  email: 'john@example.com',
-  phone: '1234567890'
-};
-
-const availableTrainings = [
-  { id: 1, training_name: 'Aptitude Mastery', trainer_name: 'Mr. Smith', training_date: '2023-10-15', duration: '2 Hours', description: 'Quantitative aptitude and reasoning', status: 'Registered' },
-  { id: 2, training_name: 'Advanced React', trainer_name: 'Ms. Alice', training_date: '2023-10-20', duration: '3 Days', description: 'React hooks, state management', status: 'Open' },
-];
-
-const eligibleCompanies = [
-  { id: 1, company_name: 'TechCorp', min_cgpa: 7.5, arrear_allowed: 'No', package: 8.5, year: 2024, deadline: '2023-11-01' },
-  { id: 2, company_name: 'InnovateX', min_cgpa: 7.0, arrear_allowed: 'Yes', package: 7.0, year: 2024, deadline: '2023-11-05' },
-];
-
-const placementStatus = {
-  status: 'Not Placed',
-  company: '-',
-  companiesAttended: 3
-};
+import React, { useState, useEffect } from 'react';
+import { fetchCompanies, fetchTrainings, fetchPlacementStatus, submitApplication } from './api';
 
 const StudentDashboard = () => {
   const [activeTab, setActiveTab] = useState('profile');
+  const [student, setStudent] = useState(JSON.parse(localStorage.getItem('user')) || {});
+  const [trainings, setTrainings] = useState([]);
+  const [companies, setCompanies] = useState([]);
+  const [status, setStatus] = useState({ status: 'Not Placed', company_name: '-' });
+
+  useEffect(() => {
+    loadStudentData();
+  }, []);
+
+  const loadStudentData = async () => {
+    try {
+      const allCompanies = await fetchCompanies();
+      // Filter companies based on CGPA and Dept eligibility
+      const eligible = allCompanies.filter(c => 
+        student.cgpa >= c.min_cgpa && 
+        (c.eligible_dept.toLowerCase() === 'all' || c.eligible_dept.includes(student.dept))
+      );
+      setCompanies(eligible);
+      setTrainings(await fetchTrainings());
+      
+      const stat = await fetchPlacementStatus(student.roll_no);
+      if (stat && !stat.notFound) setStatus(stat);
+    } catch (err) { console.error(err); }
+  };
+
+  const handleApply = async (companyId) => {
+    await submitApplication({
+      student_id: student.student_id,
+      company_id: companyId,
+      application_date: new Date().toISOString().split('T')[0],
+      resume_link: '#'
+    });
+    alert("Applied successfully!");
+  };
 
   return (
     <div className="container mt-4">
@@ -63,20 +70,20 @@ const StudentDashboard = () => {
                 <div className="col-md-6">
                   <table className="table table-bordered">
                     <tbody>
-                      <tr><th>Name</th><td>{studentProfile.name}</td></tr>
-                      <tr><th>Roll No</th><td>{studentProfile.roll_no}</td></tr>
-                      <tr><th>Department</th><td>{studentProfile.dept}</td></tr>
-                      <tr><th>Year</th><td>{studentProfile.year}</td></tr>
+                      <tr><th>Name</th><td>{student.name}</td></tr>
+                      <tr><th>Roll No</th><td>{student.roll_no}</td></tr>
+                      <tr><th>Department</th><td>{student.dept}</td></tr>
+                      <tr><th>Year</th><td>{student.year}</td></tr>
                     </tbody>
                   </table>
                 </div>
                 <div className="col-md-6">
                   <table className="table table-bordered">
                     <tbody>
-                      <tr><th>CGPA</th><td>{studentProfile.cgpa}</td></tr>
-                      <tr><th>Arrear Status</th><td>{studentProfile.arrear_status}</td></tr>
-                      <tr><th>Email</th><td>{studentProfile.email}</td></tr>
-                      <tr><th>Phone</th><td>{studentProfile.phone}</td></tr>
+                      <tr><th>CGPA</th><td>{student.cgpa}</td></tr>
+                      <tr><th>Arrear Status</th><td>{student.arrear_status}</td></tr>
+                      <tr><th>Email</th><td>{student.email}</td></tr>
+                      <tr><th>Phone</th><td>{student.phone}</td></tr>
                     </tbody>
                   </table>
                 </div>
@@ -95,19 +102,13 @@ const StudentDashboard = () => {
                     <tr><th>Training Name</th><th>Trainer</th><th>Date</th><th>Duration</th><th>Description</th><th>Status</th><th>Action</th></tr>
                   </thead>
                   <tbody>
-                    {availableTrainings.map(t => (
-                      <tr key={t.id}>
+                    {trainings.map(t => (
+                      <tr key={t.training_id}>
                         <td>{t.training_name}</td><td>{t.trainer_name}</td><td>{t.training_date}</td>
                         <td>{t.duration}</td><td>{t.description}</td>
+                        <td><span className="badge bg-primary">Available</span></td>
                         <td>
-                          <span className={`badge ${t.status === 'Registered' ? 'bg-success' : 'bg-secondary'}`}>
-                            {t.status}
-                          </span>
-                        </td>
-                        <td>
-                          <button className="btn btn-sm btn-primary" disabled={t.status === 'Registered'}>
-                            {t.status === 'Registered' ? 'Enrolled' : 'Register'}
-                          </button>
+                          <button className="btn btn-sm btn-primary">Register</button>
                         </td>
                       </tr>
                     ))}
@@ -122,16 +123,16 @@ const StudentDashboard = () => {
             <div>
               <h4 className="mb-3">Eligible Companies</h4>
               <div className="row g-4">
-                {eligibleCompanies.map(c => (
-                  <div className="col-md-6" key={c.id}>
+                {companies.map(c => (
+                  <div className="col-md-6" key={c.company_id}>
                     <div className="card h-100 border-primary">
                       <div className="card-body">
                         <h5 className="card-title text-primary">{c.company_name}</h5>
                         <p className="card-text mb-1"><strong>Package:</strong> {c.package} LPA</p>
                         <p className="card-text mb-1"><strong>Min CGPA:</strong> {c.min_cgpa}</p>
                         <p className="card-text mb-1"><strong>Arrears Allowed:</strong> {c.arrear_allowed}</p>
-                        <p className="card-text mb-3"><strong>Deadline:</strong> {c.deadline}</p>
-                        <button className="btn btn-primary w-100">Apply Now</button>
+                        <p className="card-text mb-3"><strong>Year:</strong> {c.year}</p>
+                        <button className="btn btn-primary w-100" onClick={() => handleApply(c.company_id)}>Apply Now</button>
                       </div>
                     </div>
                   </div>
@@ -148,17 +149,17 @@ const StudentDashboard = () => {
                 <div className="row text-center">
                   <div className="col-md-4 mb-3 mb-md-0">
                     <h5 className="text-muted mb-1">Status</h5>
-                    <h3 className={placementStatus.status === 'Placed' ? 'text-success' : 'text-warning'}>
-                      {placementStatus.status}
+                    <h3 className={status.status === 'Placed' ? 'text-success' : 'text-warning'}>
+                      {status.status || 'Not Placed'}
                     </h3>
                   </div>
                   <div className="col-md-4 mb-3 mb-md-0 border-start border-end">
                     <h5 className="text-muted mb-1">Company</h5>
-                    <h3>{placementStatus.company}</h3>
+                    <h3>{status.company_name || '-'}</h3>
                   </div>
                   <div className="col-md-4">
-                    <h5 className="text-muted mb-1">Companies Attended</h5>
-                    <h3>{placementStatus.companiesAttended}</h3>
+                    <h5 className="text-muted mb-1">Roll No</h5>
+                    <h3>{student.roll_no}</h3>
                   </div>
                 </div>
               </div>

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { login } from './api';
 
 const Login = () => {
   const [role, setRole] = useState('student');
@@ -7,15 +8,24 @@ const Login = () => {
   const [password, setPassword] = useState('');
   const navigate = useNavigate();
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
-    // Dummy authentication
     if (username && password) {
-      localStorage.setItem('role', role);
-      if (role === 'admin') {
-        navigate('/admin-dashboard');
-      } else {
-        navigate('/student-dashboard');
+      try {
+        const result = await login({ username, password, role });
+        if (result.success) {
+          localStorage.setItem('role', role);
+          localStorage.setItem('user', JSON.stringify(result.user));
+          if (role === 'admin') {
+            navigate('/admin-dashboard');
+          } else {
+            navigate('/student-dashboard');
+          }
+        } else {
+          alert(result.message || "Invalid credentials");
+        }
+      } catch (err) {
+        alert("Error connecting to server. Please ensure the backend is running.");
       }
     } else {
       alert("Please enter username and password");
